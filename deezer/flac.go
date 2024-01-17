@@ -63,10 +63,11 @@ func addTags(song ResSongInfoData, path string, album ResAlbum) error {
 		cmts = flacvorbis.New()
 	}
 
+	title := getTitle(song)
 	artist := getArtist(song)
 	composer := getComposer(song)
 
-	cmts.Add("TITLE", song.SngTitle)
+	cmts.Add("TITLE", title)
 	cmts.Add("ALBUM", song.AlbTitle)
 	cmts.Add("ARTIST", artist)
 	cmts.Add("ALBUMARTIST", album.Artist.Name)

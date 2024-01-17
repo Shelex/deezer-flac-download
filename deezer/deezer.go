@@ -238,6 +238,14 @@ func getSongUrl(songUrlData ResSongUrl) (string, error) {
 	return sources[0].Url, nil
 }
 
+func getTitle(song ResSongInfoData) string {
+	if song.Version == "" {
+		return song.SngTitle
+	}
+
+	return fmt.Sprintf("%s %s", song.SngTitle, song.Version)
+}
+
 func getArtist(song ResSongInfoData) string {
 	artistNames := make([]string, 0)
 	for _, artist := range song.Artists {

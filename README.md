@@ -23,10 +23,11 @@ Create a file at `~/.config/deezer-flac-download/config.toml` based on
 ## Usage
 
 1. Find the album's ID by navigating to it and looking at the URL. It's the
-  string of numbers.
-1. `go run . album <album_id>`
+  string of numbers. For track id is in url like "/track/112664512" or when you click "share" specific track and source code for embedded sharing - there will be link to track with trackId.
+2. `go run . album <album_ids>`
+3. `go run . track <album_ids>`
 
-You can also download multiple albums: `go run . album 1234 2345 3456`.
+You can also download multiple albums: `go run . album 1234 2345 3456` or multiple tracks `go run . track 1234 2345 3456`.
 
 ## FAQ
 

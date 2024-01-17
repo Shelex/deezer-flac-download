@@ -83,15 +83,15 @@ type resTracks struct {
 }
 
 type resSongInfoArtist struct {
-	ArtId             string        `json:"ART_ID"`
-	RoleId            string        `json:"ROLE_ID"`
-	ArtistsSongsOrder string        `json:"ARTISTS_SONGS_ORDER"`
-	ArtName           string        `json:"ART_NAME"`
-	ArtistIsDummy     bool          `json:"ARTIST_IS_DUMMY"`
-	ArtPicture        string        `json:"ART_PICTURE"`
-	Rank              string        `json:"RANK"`
-	Locales           []interface{} `json:"LOCALES"`
-	Type              string        `json:"__TYPE__"`
+	ArtId             string      `json:"ART_ID"`
+	RoleId            string      `json:"ROLE_ID"`
+	ArtistsSongsOrder string      `json:"ARTISTS_SONGS_ORDER"`
+	ArtName           string      `json:"ART_NAME"`
+	ArtistIsDummy     bool        `json:"ARTIST_IS_DUMMY"`
+	ArtPicture        string      `json:"ART_PICTURE"`
+	Rank              string      `json:"RANK"`
+	Locales           interface{} `json:"LOCALES"`
+	Type              string      `json:"__TYPE__"`
 }
 
 type resSongInfoMedia struct {
@@ -549,9 +549,41 @@ func getAlbumSongs(albumId string, config configuration) (resAlbumInfo, error) {
 	sData := s[startIdx+len(startMarker) : startIdx+endIdx]
 
 	var albumInfo resAlbumInfo
-	err = json.NewDecoder(strings.NewReader(sData)).Decode(&albumInfo)
-	// Ignore error, because we're only unmarshaling SONGS
+	if err := json.NewDecoder(strings.NewReader(sData)).Decode(&albumInfo); err != nil {
+		log.Printf("failed to decode album data")
+	}
 	return albumInfo, nil
+}
+
+func getTracks(trackID string, config configuration) (resSongInfo, error) {
+	url := fmt.Sprintf("https://www.deezer.com/de/track/%s", trackID)
+
+	res, err := makeReq("GET", url, nil, config)
+	if err != nil {
+		return resSongInfo{}, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		bytes, _ := io.ReadAll(res.Body)
+		log.Println(string(bytes))
+		return resSongInfo{}, fmt.Errorf("got status code %d", res.StatusCode)
+	}
+
+	bytes, _ := io.ReadAll(res.Body)
+	s := string(bytes)
+
+	startMarker := `window.__DZR_APP_STATE__ = `
+	endMarker := `</script>`
+	startIdx := strings.Index(s, startMarker)
+	endIdx := strings.Index(s[startIdx:], endMarker)
+	sData := s[startIdx+len(startMarker) : startIdx+endIdx]
+
+	var songInfo resSongInfo
+	if err := json.NewDecoder(strings.NewReader(sData)).Decode(&songInfo); err != nil {
+		return resSongInfo{}, err
+	}
+	return songInfo, nil
 }
 
 func getSongUrlData(trackToken string, config configuration) (resSongUrl, error) {
@@ -713,7 +745,7 @@ func downloadSong(url string, songPath string, songId string, attempt int, confi
 	var err error
 
 	if attempt >= 10 {
-		return fmt.Errorf("giving up downloading song after %d attempts\n", attempt)
+		return fmt.Errorf("giving up downloading song after %d attempts", attempt)
 	}
 
 	f, err := os.Create(songPath)
@@ -869,6 +901,70 @@ func addTags(song resSongInfoData, path string, album resAlbum) error {
 	return nil
 }
 
+func downloadSongs(ids []string, config configuration, logFile *os.File) {
+	for idx, trackID := range ids {
+		log.Printf("[%03d/%03d] Downloading track %s\n", idx+1, len(ids), trackID)
+		track, err := getTracks(trackID, config)
+		// debug
+		// str, _ := json.MarshalIndent(track, "", "\t")
+		// log.Println(string(str))
+		// end debug
+		if err != nil {
+			log.Fatalf("error getting track: %s\n", err)
+		}
+
+		song := track.Data
+		songUrlData, err := getSongUrlData(track.Data.TrackToken, config)
+		if err != nil {
+			log.Fatalf("error getting song url data: %s\n", err)
+		}
+
+		relatedAlbum := track.RelatedAlbums.Data[0]
+
+		album, err := getAlbum(relatedAlbum.AlbId, config)
+		if err != nil {
+			log.Fatalf("error getting album: %s\n", err)
+		}
+
+		var songUrl string
+		if err == nil {
+			songUrl, err = getSongUrl(songUrlData)
+		}
+
+		if err != nil {
+			msg := fmt.Sprintf("error getting URL for song \"%s\" by %s from \"%s\": %s\n",
+				song.SngTitle, song.ArtName, song.AlbTitle, err)
+			log.Print(msg)
+			logFile.Write([]byte(msg))
+			log.Print("Track download failed: " + trackID + "\n\n")
+			logFile.Write([]byte("Track download failed: " + trackID + "\n"))
+		}
+		songPath := getSongPath(song, album, config)
+		songDir := path.Dir(songPath)
+		coverFilePath := songDir + "/cover.jpg"
+
+		err = ensureSongDirectoryExists(songPath, album.CoverXl)
+		if err != nil {
+			log.Fatalf("error preparing directory for song: %s\n", err)
+		}
+		err = downloadSong(songUrl, songPath, song.SngId, 0, config)
+		if err != nil {
+			log.Fatalf("error downloading song: %s\n", err)
+		}
+
+		err = addTags(song, songPath, album)
+		if err != nil {
+			log.Fatalf("error adding tags to song: %s\n", err)
+		}
+		err = addCover(songPath, coverFilePath)
+		if err != nil {
+			log.Fatalf("error adding cover image to song: %s\n", err)
+		}
+		log.Print("Track download succeeded: " + trackID + "\n\n")
+		logFile.Write([]byte("Track download succeeded: " + trackID + "\n"))
+	}
+}
+
 func printUsage() {
 	log.Println("deezer-flac-download is a program to freely download Deezer FLAC files.")
 	log.Println("")
@@ -958,6 +1054,9 @@ func main() {
 			log.Print("Album download succeeded: " + albumId + "\n\n")
 			logFile.Write([]byte("Album download succeeded: " + albumId + "\n"))
 		}
+	} else if command == "track" {
+		ids := args
+		downloadSongs(ids, config, logFile)
 	} else {
 		printUsage()
 		return

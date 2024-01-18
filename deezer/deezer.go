@@ -67,54 +67,6 @@ func makeReq(method, url string, body io.Reader, config config.Configuration) (*
 	return res, err
 }
 
-func getFavorites(userId string, config config.Configuration) (ResTracks, error) {
-	url := fmt.Sprintf("https://api.deezer.com/user/%s/tracks?limit=10000000000", userId)
-	res, err := makeReq("GET", url, nil, config)
-	if err != nil {
-		return ResTracks{}, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		bytes, _ := io.ReadAll(res.Body)
-		log.Println(string(bytes))
-		return ResTracks{}, fmt.Errorf("got status code %d", res.StatusCode)
-	}
-
-	var tracks ResTracks
-	err = json.NewDecoder(res.Body).Decode(&tracks)
-	return tracks, err
-}
-
-func getSongInfo(id int64, config config.Configuration) (ResSongInfo, error) {
-	url := fmt.Sprintf("https://www.deezer.com/de/track/%d", id)
-
-	res, err := makeReq("GET", url, nil, config)
-	if err != nil {
-		return ResSongInfo{}, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		bytes, _ := io.ReadAll(res.Body)
-		log.Println(string(bytes))
-		return ResSongInfo{}, fmt.Errorf("got status code %d", res.StatusCode)
-	}
-
-	bytes, _ := io.ReadAll(res.Body)
-	s := string(bytes)
-
-	startMarker := `window.__DZR_APP_STATE__ = `
-	endMarker := `</script>`
-	startIdx := strings.Index(s, startMarker)
-	endIdx := strings.Index(s[startIdx:], endMarker)
-	sData := s[startIdx+len(startMarker) : startIdx+endIdx]
-
-	var songInfo ResSongInfo
-	err = json.NewDecoder(strings.NewReader(sData)).Decode(&songInfo)
-	return songInfo, err
-}
-
 func getAlbum(albumId string, config config.Configuration) (ResAlbum, error) {
 	url := fmt.Sprintf("https://api.deezer.com/album/%s", albumId)
 	res, err := makeReq("GET", url, nil, config)

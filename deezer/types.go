@@ -1,52 +1,5 @@
 package deezer
 
-type ResTrackAlbum struct {
-	Id          int64  `json:"id"`
-	Title       string `json:"title"`
-	Cover       string `json:"cover"`
-	CoverSmall  string `json:"cover_small"`
-	CoverMedium string `json:"cover_medium"`
-	CoverBig    string `json:"cover_big"`
-	CoverXl     string `json:"cover_xl"`
-	Md5Image    string `json:"md5_image"`
-	Tracklist   string `json:"tracklist"`
-	Type        string `json:"type"`
-}
-
-type ResTrackArtist struct {
-	Id            int64  `json:"id"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-	PictureSmall  string `json:"picture_small"`
-	PictureMedium string `json:"picture_medium"`
-	PictureBig    string `json:"picture_big"`
-	PictureXl     string `json:"picture_xl"`
-	Tracklist     string `json:"tracklist"`
-	Type          string `json:"type"`
-}
-
-type ResTrack struct {
-	Id                    int64          `json:"id"`
-	Readable              bool           `json:"readable"`
-	Title                 string         `json:"title"`
-	Link                  string         `json:"link"`
-	Duration              int            `json:"duration"`
-	Rank                  int            `json:"rank"`
-	ExplicitLyrics        bool           `json:"explicit_lyrics"`
-	ExplicitContentLyrics int            `json:"explicit_content_lyrics"`
-	ExplicitContentCover  int            `json:"explicit_content_cover"`
-	Md5Image              string         `json:"md5_image"`
-	TimeAdd               int64          `json:"time_add"`
-	Album                 ResTrackAlbum  `json:"album"`
-	Artist                ResTrackArtist `json:"artist"`
-	Type                  string         `json:"type"`
-}
-
-type ResTracks struct {
-	Data  []ResTrack `json:"data"`
-	Total int        `json:"total"`
-}
-
 type ResSongInfoArtist struct {
 	ArtId             string      `json:"ART_ID"`
 	RoleId            string      `json:"ROLE_ID"`
@@ -326,13 +279,4 @@ type ResAlbum struct {
 	Artist                ResAlbumArtist        `json:"artist"`
 	Type                  string                `json:"type"`
 	Tracks                ResAlbumTracks        `json:"tracks"`
-}
-
-type ResPing struct {
-	Error   []string `json:"error"`
-	Results struct {
-		Session   string `json:"SESSION"`
-		UserId    int    `json:"USER_ID"`
-		Checkform string `json:"CHECKFORM"`
-	} `json:"results"`
 }

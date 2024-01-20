@@ -78,7 +78,7 @@ func getAlbum(albumId string, config config.Configuration) (ResAlbum, error) {
 	if res.StatusCode != 200 {
 		bytes, _ := io.ReadAll(res.Body)
 		log.Println(string(bytes))
-		return ResAlbum{}, fmt.Errorf("got status code %d", res.StatusCode)
+		return ResAlbum{}, fmt.Errorf("failed to request album with code: %d", res.StatusCode)
 	}
 
 	var album ResAlbum
@@ -112,7 +112,7 @@ func getAlbumSongs(albumId string, config config.Configuration) (ResAlbumInfo, e
 
 	var albumInfo ResAlbumInfo
 	if err := json.NewDecoder(strings.NewReader(sData)).Decode(&albumInfo); err != nil {
-		log.Printf("failed to decode album data")
+		log.Printf("failed to decode album data: %s", err)
 	}
 	return albumInfo, nil
 }
@@ -209,11 +209,17 @@ func getArtist(song ResSongInfoData) string {
 }
 
 func getComposer(song ResSongInfoData) string {
-	if song.SngContributors.Composer == nil {
+	hasContributors := len(song.SngContributors.Contributors) > 0
+	hasContributorObject := song.SngContributors.Contributor != nil
+	if !hasContributors || !hasContributorObject {
 		return ""
 	}
 
-	composers := append([]string{}, song.SngContributors.Composer...)
+	if hasContributorObject {
+		return strings.Join(song.SngContributors.Contributor.Composer, ", ")
+	}
+
+	composers := append([]string{}, song.SngContributors.Contributors[0].Composer...)
 	return strings.Join(composers, ", ")
 }
 
@@ -253,24 +259,25 @@ func ensureSongDirectoryExists(songPath string, coverUrl string) error {
 
 	if len(coverUrl) == 0 {
 		log.Println("Skipping cover")
-	} else {
-		coverFilePath := fmt.Sprintf("%s/cover.jpg", songDir)
-		f, err := os.Create(coverFilePath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		res, err := http.Get(coverUrl)
-		if err != nil {
-			log.Printf("failed to get cover image: %s", err)
-		}
-		defer res.Body.Close()
-		_, err = io.Copy(f, res.Body)
-		if err != nil {
-			return err
-		}
+		return nil
 	}
-	return nil
+
+	coverFilePath := fmt.Sprintf("%s/cover.jpg", songDir)
+	f, err := os.Create(coverFilePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	res, err := http.Get(coverUrl)
+	if err != nil {
+		log.Printf("failed to get cover image: %s", err)
+	}
+	defer res.Body.Close()
+	_, err = io.Copy(f, res.Body)
+	if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+		log.Printf("seems like image is invalid: %s", err)
+	}
+	return err
 }
 
 func downloadSong(url string, songPath string, songId string, attempt int, config config.Configuration) error {

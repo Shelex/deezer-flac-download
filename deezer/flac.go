@@ -1,6 +1,7 @@
 package deezer
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/go-flac/flacpicture"
@@ -27,18 +28,18 @@ func extractFlacComment(f *flac.File) (*flacvorbis.MetaDataBlockVorbisComment, i
 func addCover(songPath string, coverPath string) error {
 	coverData, err := os.ReadFile(coverPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read cover from %s: %s", coverPath, err)
 	}
 
 	f, err := flac.ParseFile(songPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse flac from file: %s", songPath)
 	}
 
 	picture, err := flacpicture.NewFromImageData(flacpicture.PictureTypeFrontCover,
 		"Front cover", coverData, "image/jpeg")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to add new image from data: %s", err)
 	}
 
 	picturemeta := picture.Marshal()

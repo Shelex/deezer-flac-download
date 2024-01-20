@@ -1,5 +1,7 @@
 package deezer
 
+import "encoding/json"
+
 type ResSongInfoArtist struct {
 	ArtId             string      `json:"ART_ID"`
 	RoleId            string      `json:"ROLE_ID"`
@@ -30,6 +32,19 @@ type ResSongInfoContributors struct {
 	Featuring      []string `json:"featuring"`
 	Narrator       []string `json:"narrator"`
 	MusicPublisher []string `json:"music publisher"`
+}
+
+// contributors could be array or object
+type SongInfoContributors struct {
+	Contributors []*ResSongInfoContributors
+	Contributor  *ResSongInfoContributors
+}
+
+func (sic *SongInfoContributors) UnmarshalJSON(data []byte) error {
+	if data[0] == '[' {
+		return json.Unmarshal(data, &sic.Contributors)
+	}
+	return json.Unmarshal(data, &sic.Contributor)
 }
 
 type ResSongInfoExplicitTrackContent struct {
@@ -80,7 +95,7 @@ type ResSongInfoData struct {
 	Rights               ResSongInfoRights               `json:"RIGHTS"`
 	Isrc                 string                          `json:"ISRC"`
 	HierarchicalTitle    string                          `json:"HIERARCHICAL_TITLE"`
-	SngContributors      ResSongInfoContributors         `json:"SNG_CONTRIBUTORS"`
+	SngContributors      SongInfoContributors            `json:"SNG_CONTRIBUTORS"`
 	LyricsId             int                             `json:"LYRICS_ID"`
 	ExplicitTrackContent ResSongInfoExplicitTrackContent `json:"EXPLICIT_TRACK_CONTENT"`
 	Copyright            string                          `json:"COPYRIGHT"`
